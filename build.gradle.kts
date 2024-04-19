@@ -27,6 +27,9 @@ dependencies {
     implementation("org.graalvm.polyglot:js-community:23.1.2")
     implementation("com.auth0:java-jwt:4.4.0")
     implementation("com.github.scribejava:scribejava:8.3.3")
+    implementation("io.reactivex.rxjava3:rxkotlin:3.0.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.8.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
 
 }
@@ -89,6 +92,7 @@ tasks.jpackage {
         "java.naming",
         "java.prefs",
         "java.sql",
+        "java.sql.rowset",
         "jdk.unsupported",
         "java.management",
         "jdk.management",

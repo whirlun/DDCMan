@@ -5,7 +5,7 @@ import java.sql.Clob
 
 data class CollectionNode(
     val id: Int,
-    val name: String,
+    var name: String,
     val description: String) {
     constructor(collection: Collections) :
             this(collection.id,

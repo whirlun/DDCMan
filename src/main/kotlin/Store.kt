@@ -1,6 +1,7 @@
 package ddcMan
 
 import com.fasterxml.jackson.databind.deser.impl.CreatorCandidate.Param
+import io.reactivex.rxjava3.subjects.PublishSubject
 import org.ktorm.database.Database
 import org.ktorm.entity.sequenceOf
 import java.io.BufferedReader
@@ -8,6 +9,8 @@ import java.io.InputStreamReader
 
 object Store {
     val db = Database.connect("jdbc:h2:file:${getPlatformDataDir()}/ddcman;CASE_INSENSITIVE_IDENTIFIERS=TRUE")
+
+    val rxSubject = PublishSubject.create<Pair<String, String>>()
 
     init {
         val schemaScript = javaClass.getResourceAsStream("/schema.sql")

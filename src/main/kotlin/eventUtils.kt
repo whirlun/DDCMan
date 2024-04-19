@@ -1,6 +1,8 @@
 package ddcMan
 
 import javax.swing.JTextField
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import javax.swing.event.TableModelEvent
 import javax.swing.table.DefaultTableModel
 
@@ -43,5 +45,21 @@ fun syncUriParams(tab: String, origin: String) {
         } else {
             uriInput.text = uriInput.text + "?" + queryStr
         }
+    }
+}
+
+fun interface SimpleDocumentListener: DocumentListener {
+    fun update(e: DocumentEvent?)
+
+    override fun changedUpdate(e: DocumentEvent?) {
+        update(e)
+    }
+
+    override fun insertUpdate(e: DocumentEvent?) {
+        update(e)
+    }
+
+    override fun removeUpdate(e: DocumentEvent?) {
+        update(e)
     }
 }

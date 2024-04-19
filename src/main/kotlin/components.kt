@@ -1,17 +1,17 @@
 package ddcMan
 
+import io.reactivex.rxjava3.core.Observable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants
 import org.fife.ui.rsyntaxtextarea.Theme
 import org.fife.ui.rtextarea.RTextScrollPane
-import org.ktorm.dsl.from
-import org.ktorm.dsl.insert
-import org.ktorm.dsl.map
-import org.ktorm.dsl.select
-import org.ktorm.entity.Entity
-import org.ktorm.entity.add
-import org.ktorm.entity.last
+import org.ktorm.dsl.*
+import org.ktorm.entity.*
 import java.awt.*
+import java.awt.event.FocusEvent
+import java.awt.event.FocusListener
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.sql.Clob
@@ -20,6 +20,11 @@ import javax.swing.table.DefaultTableModel
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.MutableTreeNode
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.swing.Swing
+import javax.swing.event.DocumentEvent
+
 
 fun sidebarTree(tabs: JTabbedPane): JSplitPane {
     val toolbar = JPanel()
@@ -71,15 +76,33 @@ fun sidebarTree(tabs: JTabbedPane): JSplitPane {
     tree.minimumSize = Dimension(150, 450)
     tree.maximumSize = Dimension(150, 4500)
     tree.isRootVisible = false
+    val tabIndex = tabs.tabCount - 1
     tree.addTreeSelectionListener {
         val elem = it.path.lastPathComponent
         if (elem is DefaultMutableTreeNode && elem.userObject is CollectionNode) {
-            tabs.insertTab((elem.userObject as CollectionNode).name,
+            val userObject = elem.userObject as CollectionNode
+            tabs.insertTab(
+                userObject.name,
                 null,
-                collectionView(elem.userObject as CollectionNode),
+                collectionView(userObject),
                 null,
-                tabs.tabCount - 1)
-            tabs.selectedIndex = tabs.tabCount - 1
+                tabIndex)
+            tabs.setTabComponentAt(tabIndex, TabCloseButton(userObject.name, userObject.id, tabs))
+            tabs.selectedIndex = tabIndex
+        }
+    }
+    Store.rxSubject.subscribe {
+        if (it.first.startsWith("CollectionName")) {
+            val collectionId = it.first.split("|").last().toInt()
+            for (node in root.children()) {
+                if (node is DefaultMutableTreeNode
+                    && node.userObject is CollectionNode
+                    && (node.userObject as CollectionNode).id == collectionId) {
+                    (node.userObject as CollectionNode).name = it.second
+                    tree.repaint()
+                    tabs.setTitleAt(tabIndex, it.second)
+                }
+            }
         }
     }
     val splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT, toolbar, tree)
@@ -109,8 +132,8 @@ fun collectionView(collection: CollectionNode): JPanel {
     panel.add(nameInput, constraint)
     constraint.fill = GridBagConstraints.BOTH
     constraint.gridy = 1
-    constraint.weightx = 0.0
-    constraint.weighty = 0.0
+    constraint.weightx = 1.0
+    constraint.weighty = 1.0
     val descriptionInput = themedSyntaxTextArea()
     descriptionInput.apply {
         syntaxEditingStyle = RSyntaxTextArea.SYNTAX_STYLE_MARKDOWN
@@ -138,6 +161,22 @@ fun collectionView(collection: CollectionNode): JPanel {
     val emptyPanel3 = JPanel()
     emptyPanel3.preferredSize = Dimension(200, (panel.height * 0.6).toInt())
     panel.add(emptyPanel3, constraint)
+    nameInput.addFocusListener(object: FocusListener {
+        override fun focusGained(e: FocusEvent?) {}
+
+        override fun focusLost(e: FocusEvent?) {
+//            SwingUtilities.invokeLater {
+//                val col = Store.collections.find { row -> row.id eq collection.id }
+//                if (col != null) {
+//                    col.name = nameInput.text
+//                    if (col.flushChanges() != 0) {
+//                        Store.rxSubject.onNext(Pair("CollectionName|${collection.id}", nameInput.text))
+//                    }
+//                }
+//            }
+            UpdateWorker(collection, nameInput.text).execute()
+        }
+    })
     return panel
 }
 
@@ -430,5 +469,6 @@ fun tabView(): JTabbedPane {
     panel.addTab("new", JPanel())
     panel.setTabComponentAt(0, newTabButton)
     panel.setEnabledAt(0, false)
+
     return panel
 }

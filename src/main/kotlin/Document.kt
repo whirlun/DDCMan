@@ -1,11 +1,13 @@
 package ddcMan
 
+import io.reactivex.rxjava3.core.Observable
 import javax.swing.JLabel
 import javax.swing.JTextField
+import io.reactivex.rxjava3.kotlin.toObservable
+import java.util.concurrent.TimeUnit
 
 object Document {
     val store: MutableMap<String, MutableMap<String, Any>> = mutableMapOf()
-
     fun put(tab: String, key: String, value: Any) {
         store[tab]?.set(key, value)
     }
