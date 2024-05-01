@@ -24,23 +24,21 @@ interface Collections: Entity<Collections> {
 interface Requests: Entity<Requests> {
     companion object : Entity.Factory<Requests>()
     val id: Int
-    val name: String
-    val url: String
-    val method: HTTPMETHOD
-    val collection: Collections
-    val param: Params
-    val header: Headers
-    val body: Bodies
-    val preRequestScript: PreRequestScripts
-    val testScript: TestScripts
+    var name: String
+    var url: String
+    var method: HTTPMETHOD
+    var collection: Collections
+    var preRequestScript: PreRequestScripts
+    var testScript: TestScripts
 }
 
 interface Params: Entity<Params> {
     companion object : Entity.Factory<Params>()
     val id: Int
-    val key: String
-    val value: String
-    val description: String
+    var key: String
+    var value: String
+    var description: String
+    var request: Requests
 }
 
 interface Headers: Entity<Headers> {
@@ -49,27 +47,29 @@ interface Headers: Entity<Headers> {
     val key: String
     val value: Clob
     val description: String
+    val request: Requests
 }
 
 interface Bodies: Entity<Bodies> {
     companion object : Entity.Factory<Bodies>()
     val id: Int
-    val key: String
-    val value: Clob
-    val description: String
-    val type: BodyType
+    var key: String
+    var value: Clob
+    var description: String
+    var type: BodyType
+    var request: Requests
 }
 
 interface PreRequestScripts: Entity<PreRequestScripts> {
     companion object : Entity.Factory<PreRequestScripts>()
     val id: Int
-    val script: Clob
+    var script: Clob
 }
 
 interface TestScripts: Entity<TestScripts> {
     companion object : Entity.Factory<TestScripts>()
     val id: Int
-    val script: Clob
+    var script: Clob
 }
 
 interface Environments: Entity<Environments> {

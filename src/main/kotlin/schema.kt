@@ -19,9 +19,6 @@ object RequestTable: Table<Requests>("Request") {
     val url = varchar("url").bindTo { it.url }
     val method = enum<HTTPMETHOD>("method").bindTo { it.method }
     val collection_id = int("collection_id").references(CollectionTable) { it.collection }
-    val param_id = int("param_id").references(ParamTable) { it.param }
-    val header_id = int("header_id").references(HeaderTable) { it.header }
-    val body_id = int("body_id").references(BodyTable) { it.body }
     val pre_script_id = int("pre_script_id").references(PreRequestScriptTable) { it.preRequestScript }
     val test_script_id = int("test_script_id").references(TestScriptTable) { it.testScript }
 }
@@ -31,6 +28,7 @@ object ParamTable: Table<Params>("Param") {
     val key = varchar("key").bindTo { it.key }
     val value = varchar("value").bindTo { it.value }
     val description = varchar("description").bindTo { it.description }
+    val request_id = int("request_id").references(RequestTable) { it.request }
 }
 
 object HeaderTable: Table<Headers>("Header") {
@@ -38,6 +36,7 @@ object HeaderTable: Table<Headers>("Header") {
     val key = varchar("key").bindTo { it.key }
     val value = clob("value").bindTo { it.value }
     val description = varchar("description").bindTo { it.description }
+    val request_id = int("request_id").references(RequestTable) { it.request }
 }
 
 object BodyTable: Table<Bodies>("Body") {
@@ -46,6 +45,7 @@ object BodyTable: Table<Bodies>("Body") {
     val value = clob("value").bindTo { it.value }
     val description = varchar("description").bindTo { it.description }
     val type = enum<BodyType>("type").bindTo { it.type }
+    val request_id = int("request_id").references(RequestTable) { it.request }
 }
 
 object PreRequestScriptTable: Table<PreRequestScripts>("PreRequestScript") {

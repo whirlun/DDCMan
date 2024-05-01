@@ -8,7 +8,7 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTabbedPane
 
-class TabCloseButton(title: String, val id: Int, val tabs: JTabbedPane): JPanel() {
+class TabCloseButton(title: String, val id: Int, val tabs: JTabbedPane, val type: String): JPanel() {
     init {
         val closeButton = JButton("x")
         val label = JLabel(title)
@@ -19,9 +19,10 @@ class TabCloseButton(title: String, val id: Int, val tabs: JTabbedPane): JPanel(
             addMouseListener(object: MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
                     for (i in 0 ..< tabs.tabCount) {
-                        val tab = tabs.getTabComponentAt(i)
-                        if ((tab as TabCloseButton).id == id) {
+                        val tab = tabs.getTabComponentAt(i) as TabCloseButton
+                        if (tab.id == id && tab.type == type) {
                             tabs.removeTabAt(i)
+                            Document.store.remove(tab.id.toString())
                             break
                         }
                     }

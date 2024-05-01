@@ -23,6 +23,7 @@ import javax.swing.tree.MutableTreeNode
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
+import javax.print.Doc
 import javax.swing.event.DocumentEvent
 
 
@@ -81,14 +82,18 @@ fun sidebarTree(tabs: JTabbedPane): JSplitPane {
         val elem = it.path.lastPathComponent
         if (elem is DefaultMutableTreeNode && elem.userObject is CollectionNode) {
             val userObject = elem.userObject as CollectionNode
-            tabs.insertTab(
-                userObject.name,
-                null,
-                collectionView(userObject),
-                null,
-                tabIndex)
-            tabs.setTabComponentAt(tabIndex, TabCloseButton(userObject.name, userObject.id, tabs))
-            tabs.selectedIndex = tabIndex
+            if (!Document.hasTab(userObject.id.toString())) {
+                tabs.insertTab(
+                    userObject.name,
+                    null,
+                    collectionView(userObject),
+                    null,
+                    tabIndex
+                )
+                Document.addTab(userObject.id.toString())
+                tabs.setTabComponentAt(tabIndex, TabCloseButton(userObject.name, userObject.id, tabs, "collection"))
+                tabs.selectedIndex = tabIndex
+            }
         }
     }
     Store.rxSubject.subscribe {
@@ -99,8 +104,14 @@ fun sidebarTree(tabs: JTabbedPane): JSplitPane {
                     && node.userObject is CollectionNode
                     && (node.userObject as CollectionNode).id == collectionId) {
                     (node.userObject as CollectionNode).name = it.second
-                    tree.repaint()
-                    tabs.setTitleAt(tabIndex, it.second)
+                    treeModel.reload()
+                    for (i in 0 ..< tabs.tabCount) {
+                        val tab = tabs.getTabComponentAt(i) as TabCloseButton
+                        if (tab.id == collectionId && tab.type == "collection") {
+                            tabs.setTabComponentAt(i, TabCloseButton(it.second, collectionId, tabs, "collection"))
+                            break
+                        }
+                    }
                 }
             }
         }
@@ -165,15 +176,6 @@ fun collectionView(collection: CollectionNode): JPanel {
         override fun focusGained(e: FocusEvent?) {}
 
         override fun focusLost(e: FocusEvent?) {
-//            SwingUtilities.invokeLater {
-//                val col = Store.collections.find { row -> row.id eq collection.id }
-//                if (col != null) {
-//                    col.name = nameInput.text
-//                    if (col.flushChanges() != 0) {
-//                        Store.rxSubject.onNext(Pair("CollectionName|${collection.id}", nameInput.text))
-//                    }
-//                }
-//            }
             UpdateWorker(collection, nameInput.text).execute()
         }
     })
@@ -236,7 +238,7 @@ fun httpParaView(tab: String): JScrollPane {
     }
     registerTableEvent(model, tab, "param_uri_assoc", arrayOf("", "", ""),
         {
-        listOf(model.getValueAt(it, 0)?.toString(), model.getValueAt(it, 1)?.toString())
+        listOf(model.getValueAt(it, 0)?.toString(), model.getValueAt(it, 1)?.toString(), model.getValueAt(it, 2)?.toString())
         }, {
             syncUriParams(tab, "params_table")
         }
@@ -258,10 +260,10 @@ fun xWWWFormView(tab: String): JScrollPane {
     model.addRow(arrayOf("", "", ""))
     registerTableEvent(model, tab, "req_body", arrayOf("", "", ""),
         {
-            listOf(model.getValueAt(it, 0)?.toString(), model.getValueAt(it, 1)?.toString())
+            listOf(model.getValueAt(it, 0)?.toString(), model.getValueAt(it, 1)?.toString(), model.getValueAt(it, 2)?.toString())
         }, {
-            Document.put(tab, "req_body", Document.get<List<List<String?>>>(tab, "req_body")!!
-                .associateBy({it[0]}, {it[1]}))
+            println(Document.get<List<List<String>>>(tab, "req_body"))
+
         }
     )
     val table = JTable(model)
@@ -288,12 +290,15 @@ fun formDataBodyView(tab: String): JScrollPane {
         {
             listOf(
                 model.getValueAt(it, 0).toString() + ":;" + model.getValueAt(it, 1).toString(),
-                model.getValueAt(it, 2).toString()
+                model.getValueAt(it, 2).toString(),
+                model.getValueAt(it, 3).toString()
             )
         },
         {
-            Document.put(tab, "req_body", Document.get<List<List<String?>>>(tab, "req_body")!!
-                .associateBy({it[0]}, {it[1]}))
+//            Document.put(tab, "req_body", Document.get<List<List<String?>>>(tab, "req_body")!!
+//                .associateBy({it[0]}, {it[1]}))
+            println(Document.get<List<List<String>>>(tab, "req_body"))
+
         }
     )
     IntRange(0, table.columnModel.columnCount - 1).map {
@@ -373,32 +378,64 @@ fun httpTestInnerView(tab: String): JSplitPane {
     return splitPanel
 }
 
+fun showSaveOptionPane(tab: String) {
+    val dialog = JPanel()
+    val layout = BoxLayout(dialog, BoxLayout.Y_AXIS)
+    dialog.layout = layout
+    val nameInput = JTextField()
+    dialog.add(JLabel("Name"))
+    dialog.add(nameInput)
+    val collections = Store
+        .db
+        .from(CollectionTable)
+        .select()
+        .map { CollectionNode(CollectionTable.createEntity(it)) }
+        .toTypedArray()
+    val collectionInput = JComboBox(collections)
+    dialog.add(JLabel("Collection"))
+    dialog.add(collectionInput)
+    val result = JOptionPane.showConfirmDialog(null, dialog, "Save", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE)
+    if (result == JOptionPane.OK_OPTION) {
+        InsertWorker(tab, nameInput.text, (collectionInput.selectedItem as CollectionNode).id).execute()
+        Store.rxSubject.subscribe {
+            if (it.first.startsWith("InsertRequest")) {
+                val requestId = it.first.split("|")[1].toInt()
+                Document.put(tab, "id", requestId)
+            }
+        }
+    }
+}
+
 fun httpTestView(tab: String): JSplitPane {
     val methodCombobox = JComboBox(arrayOf("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"))
     methodCombobox.preferredSize = Dimension(100, 30)
     methodCombobox.maximumSize = Dimension(100, 30)
+    methodCombobox.addActionListener {
+        Document.put(tab, "method", HTTPMETHOD.valueOf(methodCombobox.selectedItem!!.toString()))
+    }
     val sendButton = JButton("Send")
     val saveButton = JButton("Save")
+    saveButton.addActionListener { showSaveOptionPane(tab) }
     val uriInput = Document.get<JTextField>(tab, "uri_input")
     sendButton.addActionListener {
         val client = HttpClient()
         val bodyType = Document.get<BodyType>(tab, "body_type")!!
-        val response = when (methodCombobox.selectedItem) {
-            "GET" -> client.get(uriInput!!.text, mapOf())
-            "POST" -> Document.get<Map<String, String>>(tab, "req_body")?.let { it1 ->
-                client.post(uriInput!!.text, mapOf(), it1, bodyType)
+        val response = when (Document.get<HTTPMETHOD>(tab, "method")) {
+            HTTPMETHOD.GET -> client.get(uriInput!!.text, mapOf())
+            HTTPMETHOD.POST -> Document.get<List<List<String>>>(tab, "req_body")?.let { it1 ->
+                client.post(uriInput!!.text, mapOf(), it1.associateBy({it2 -> it2[0]}, {it2 -> it2[1]}), bodyType)
             }
-            "PUT" -> Document.get<Map<String, String>>(tab, "req_body")?.let { it1 ->
-                client.put(uriInput!!.text, mapOf(), it1, bodyType)
+            HTTPMETHOD.PUT -> Document.get<List<List<String>>>(tab, "req_body")?.let { it1 ->
+                client.put(uriInput!!.text, mapOf(), it1.associateBy({it2 -> it2[0]}, {it2 -> it2[1]}), bodyType)
             }
-            "PATCH" -> Document.get<Map<String, String>>(tab, "req_body")?.let { it1 ->
-                client.patch(uriInput!!.text, mapOf(), it1, bodyType)
+            HTTPMETHOD.PATCH -> Document.get<List<List<String>>>(tab, "req_body")?.let { it1 ->
+                client.patch(uriInput!!.text, mapOf(), it1.associateBy({it2 -> it2[0]}, {it2 -> it2[1]}), bodyType)
             }
-            "DELETE" -> Document.get<Map<String, String>>(tab, "req_body")?.let { it1 ->
-                client.delete(uriInput!!.text, mapOf(), it1, bodyType)
+            HTTPMETHOD.DELETE -> Document.get<List<List<String>>>(tab, "req_body")?.let { it1 ->
+                client.delete(uriInput!!.text, mapOf(), it1.associateBy({it2 -> it2[0]}, {it2 -> it2[1]}), bodyType)
             }
-            "HEAD" -> client.head(uriInput!!.text, mapOf())
-            "OPTIONS" -> client.options(uriInput!!.text, mapOf())
+            HTTPMETHOD.HEAD -> client.head(uriInput!!.text, mapOf())
+            HTTPMETHOD.OPTIONS -> client.options(uriInput!!.text, mapOf())
             else -> null
         }
         val resultTextArea = Document.get<RSyntaxTextArea>(tab, "result_text_area")
