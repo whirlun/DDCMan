@@ -499,8 +499,10 @@ fun tabView(): JTabbedPane {
             i++
         }
         Document.addDocument("Untitled$i")
+        val index = panel.tabCount - 1
         panel.insertTab("Untitled$i", null, protocolSelectView("Untitled$i"), null, panel.tabCount - 1)
-        panel.selectedIndex = panel.tabCount - 2
+        panel.setTabComponentAt(index, TabCloseButton("Untitled$i", i, panel, "request"))
+        panel.selectedIndex = index
     }
     //panel.addTab("Untitled", protocolSelectView("Untitled"))
     panel.addTab("new", JPanel())
