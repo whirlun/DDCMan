@@ -9,7 +9,7 @@ import javax.print.Doc
 import javax.swing.JTextField
 import javax.swing.SwingWorker
 
-class InsertWorker(private val tab: String, private val name: String, private val collection: Int): SwingWorker<Int, Unit>() {
+class InsertWorker(private val tab: String, private val saveName: String, private val collection: Int): SwingWorker<Int, Unit>() {
     override fun doInBackground(): Int {
         val preScriptText = Document.get<RSyntaxTextArea>(tab, "pre_script_text_area")?.text ?: ""
         val testScriptText = ""
@@ -29,7 +29,7 @@ class InsertWorker(private val tab: String, private val name: String, private va
         val methodInput = Document.get<HTTPMETHOD>(tab, "method")!!
         val collectionInput = Store.collections.find { it.id eq collection }!!
         val newRequest = Requests {
-            name = this.name
+            name = saveName
             url = urlInput
             method = methodInput
             collection = collectionInput
@@ -72,7 +72,7 @@ class InsertWorker(private val tab: String, private val name: String, private va
     override fun done() {
         try {
             val requestId = get()
-            Store.rxSubject.onNext(Pair("InsertRequest|${requestId}", ""))
+            Store.rxSubject.onNext(Pair("InsertRequest|${requestId}", "$collection"))
         } catch (e: Exception) {
             e.printStackTrace()
             println(e.cause)

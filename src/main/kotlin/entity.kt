@@ -21,6 +21,24 @@ interface Collections: Entity<Collections> {
     var description: Clob
 }
 
+data class RequestNode(val id: Int,
+    val name: String,
+    val url: String,
+    val method: HTTPMETHOD,
+    val collection: Collections,
+    val preRequestScripts: PreRequestScripts,
+    val testScripts: TestScripts) {
+    constructor(requests: Requests): this(requests.id,
+        requests.name,
+        requests.url,
+        requests.method,
+        requests.collection,
+        requests.preRequestScript,
+        requests.testScript)
+
+    override fun toString(): String = name
+}
+
 interface Requests: Entity<Requests> {
     companion object : Entity.Factory<Requests>()
     val id: Int

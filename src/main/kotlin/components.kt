@@ -97,6 +97,7 @@ fun sidebarTree(tabs: JTabbedPane): JSplitPane {
         }
     }
     Store.rxSubject.subscribe {
+        println("received signal $it")
         if (it.first.startsWith("CollectionName")) {
             val collectionId = it.first.split("|").last().toInt()
             for (node in root.children()) {
@@ -104,7 +105,6 @@ fun sidebarTree(tabs: JTabbedPane): JSplitPane {
                     && node.userObject is CollectionNode
                     && (node.userObject as CollectionNode).id == collectionId) {
                     (node.userObject as CollectionNode).name = it.second
-                    treeModel.reload()
                     for (i in 0 ..< tabs.tabCount) {
                         val tab = tabs.getTabComponentAt(i) as TabCloseButton
                         if (tab.id == collectionId && tab.type == "collection") {
@@ -114,7 +114,27 @@ fun sidebarTree(tabs: JTabbedPane): JSplitPane {
                     }
                 }
             }
+        } else if (it.first.startsWith("InsertRequest")) {
+            val requestId = it.first.split("|").last().toInt()
+            val collectionId = it.second.toInt()
+            for (treeNode in root.breadthFirstEnumeration()) {
+                if (treeNode is DefaultMutableTreeNode) {
+                    if (treeNode.userObject is String) {
+                        continue
+                    }
+                    if (treeNode.userObject !is CollectionNode) {
+                        break
+                    }
+                    val collectionNode = treeNode.userObject as CollectionNode
+                    if (collectionNode.id == collectionId) {
+                        print(treeNode)
+                        val request = Store.requests.find { r -> r.id eq requestId }
+                        treeNode.add(DefaultMutableTreeNode(RequestNode(request!!)))
+                    }
+                }
+            }
         }
+        treeModel.reload()
     }
     val splitPane = JSplitPane(JSplitPane.VERTICAL_SPLIT, toolbar, tree)
     splitPane.dividerSize = 0
@@ -396,6 +416,7 @@ fun showSaveOptionPane(tab: String) {
     dialog.add(collectionInput)
     val result = JOptionPane.showConfirmDialog(null, dialog, "Save", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE)
     if (result == JOptionPane.OK_OPTION) {
+
         InsertWorker(tab, nameInput.text, (collectionInput.selectedItem as CollectionNode).id).execute()
         Store.rxSubject.subscribe {
             if (it.first.startsWith("InsertRequest")) {
